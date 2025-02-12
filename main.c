@@ -110,24 +110,18 @@ int main ()
     }
 
     Color colours[3] = {{212, 182, 82, 255}, {177, 87, 73, 255}, {100, 137, 103, 255}};
-    int tally[3] = {0, 0, 0};
-    Color oldcolour;
-    
-    Image spainImage = LoadImage("spain.png");     // Loaded in CPU memory (RAM)
+
+    Image gameMap = LoadImage("spain.png");     // Loaded in CPU memory (RAM)
 
     for (int i = 0; i < 53; i++)
     {
-        oldcolour = provinces[i].colour;
-        provinces[i].colour = colours[provinces[i].ownerID];
-        provinces[i].colour.b += tally[provinces[i].ownerID];
-        tally[provinces[i].ownerID]++;
-        ImageColorReplace(&spainImage, oldcolour , provinces[i].colour);
+        ImageColorReplace(&gameMap, provinces[i].colour, colours[provinces[i].ownerID]);
     }
 
+    Texture2D spainTexture = LoadTextureFromImage(gameMap);          // Image converted to texture, GPU memory (VRAM)
 
-    Texture2D spainTexture = LoadTextureFromImage(spainImage);          // Image converted to texture, GPU memory (VRAM)
+    Image imageMap = LoadImage("spain.png");     // Loaded in CPU memory (RAM)
 
-    Image screenshotImage;
     Color colour;
 
     Camera2D camera = { 0 };
@@ -147,8 +141,6 @@ int main ()
     {
         // Update
         //----------------------------------------------------------------------------------
-
-        screenshotImage = LoadImageFromScreen();
 
         if ( IsKeyPressed(KEY_F))
         {
@@ -182,6 +174,8 @@ int main ()
 
         Vector2 delta = {0};
         Vector2 mousePosition = GetMousePosition();
+        Vector2 mouseWorldPos =  GetScreenToWorld2D(GetMousePosition(), camera);
+
         int moveSpeed = 10;
 
         if (mousePosition.x < (screenWidth/10))
@@ -215,31 +209,30 @@ int main ()
         
         delta = Vector2Scale(delta, -1.0f/camera.zoom);
         camera.target = Vector2Add(camera.target, delta);
-        
-
 
         camera.target.x = Clamp(camera.target.x, 0 , screenWidth);
         camera.target.y = Clamp(camera.target.y, 0 , screenHeight);
         
-
         printf("Camera offset x:%.6f\nCamera offset y:%.6f\nCamera target x:%.6f\nCamera target y:%.6f\nCamera zoom:%.6f\n", camera.offset.x, camera.offset.y, camera.target.x, camera.target.y, camera.zoom);
 
         float wheel = GetMouseWheelMove();
+
         if (wheel != 0)
         {
 
-            Vector2 mouseWorldPos = GetScreenToWorld2D(GetMousePosition(), camera);
+            // Set the offset to where the mouse is
+            camera.offset = GetMousePosition();
 
-                // Set the offset to where the mouse is
-                camera.offset = GetMousePosition();
+            // Set the target to match, so that the camera maps the world space point 
+            // under the cursor to the screen space point under the cursor at any zoom
+            camera.target = mouseWorldPos;
 
-                // Set the target to match, so that the camera maps the world space point 
-                // under the cursor to the screen space point under the cursor at any zoom
-                camera.target = mouseWorldPos;
-
-                // Zoom increment
-                float scaleFactor = 1.0f + (0.25f*fabsf(wheel));
-                if (wheel < 0) scaleFactor = 1.0f/scaleFactor;
+            // Zoom increment
+            float scaleFactor = 1.0f + (0.25f*fabsf(wheel));
+            if (wheel < 0)
+            {
+                scaleFactor = 1.0f/scaleFactor;
+            }
             camera.zoom = Clamp(camera.zoom*scaleFactor, 1.0f, 5.0f);
         }
 
@@ -265,7 +258,10 @@ int main ()
         int rectangleWidth = screenWidth/6;
         DrawRectangle(0, screenHeight-rectangleHeight, rectangleWidth, rectangleHeight, BEIGE);
 
-        colour = GetImageColor(screenshotImage, mousePosition.x*2, mousePosition.y*2);
+        float getImageColorx = mouseWorldPos.x/screenWidth*478;
+        float getImageColory = mouseWorldPos.y/screenHeight*279;
+
+        colour = GetImageColor(imageMap, getImageColorx, getImageColory);
         DrawText(TextFormat("%d, %d, %d", colour.r, colour.g, colour.b), 0, screenHeight-rectangleHeight, 20, WHITE);
         DrawCircle(screenWidth/12, screenHeight-rectangleHeight/3, 20, colour);
 
@@ -280,10 +276,10 @@ int main ()
 
         EndDrawing();
         //----------------------------------------------------------------------------------
-        UnloadImage(screenshotImage);
     }
 
-    UnloadImage(spainImage);   // Once image has been converted to texture and uploaded to VRAM, it can be unloaded from RAM
+    UnloadImage(gameMap);   // Once image has been converted to texture and uploaded to VRAM, it can be unloaded from RAM
+    UnloadImage(imageMap);
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
