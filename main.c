@@ -25,12 +25,9 @@ typedef enum Country
     PORTUGAL = 2
 } Country;
 
-//------------------------------------------------------------------------------------
-// Program main entry point
-//------------------------------------------------------------------------------------
 int main ()
 {
-    // Initialization
+    // Initialisation
     //--------------------------------------------------------------------------------------
     int windowedScreenWidth = 800;
     int windowedScreenHeight = 500;
@@ -40,7 +37,8 @@ int main ()
 
     InitWindow(screenWidth, screenHeight, "Map");
     
-    Province provinces[53];
+    int provinceCount = 53;
+    Province provinces[provinceCount];
 
     FILE* fp = fopen("information.csv", "r");
     
@@ -48,8 +46,7 @@ int main ()
         printf("Can't open file\n");
  
     else {
-        // Here we have taken size of
-        // array 1024 you can modify it
+
         char buffer[1024];
  
         int row = 0;
@@ -59,7 +56,6 @@ int main ()
         { 
             column = 0;
 
-            // Splitting the data
             char* value = strtok(buffer, ",");
 
             provinces[row].colour.a = 255;
@@ -67,13 +63,11 @@ int main ()
             while (value)
             {
                 
-                // Column 1
                 if (column == 0)
                 {
                     strcpy(provinces[row].name, value);
                 }
  
-                // Column 2
                 if (column == 1)
                 {
                     provinces[row].colour.r = atoi(value);
@@ -109,18 +103,21 @@ int main ()
         fclose(fp);
     }
 
+    // Country colours
     Color colours[3] = {{212, 182, 82, 255}, {177, 87, 73, 255}, {100, 137, 103, 255}};
 
-    Image gameMap = LoadImage("spain.png");     // Loaded in CPU memory (RAM)
+    Image playerMap = LoadImage("spain.png");     // Loaded in CPU memory (RAM)
 
-    for (int i = 0; i < 53; i++)
+    for (int i = 0; i < provinceCount; i++) // // Create map with country colours for player
     {
-        ImageColorReplace(&gameMap, provinces[i].colour, colours[provinces[i].ownerID]);
+        ImageColorReplace(&playerMap, provinces[i].colour, colours[provinces[i].ownerID]);
     }
 
-    Texture2D spainTexture = LoadTextureFromImage(gameMap);          // Image converted to texture, GPU memory (VRAM)
+    Texture2D spainTexture = LoadTextureFromImage(playerMap);          // Image converted to texture, GPU memory (VRAM) 
+    
+    Image valueMap = LoadImage("spain.png"); // Map with unique province colours
 
-    Image imageMap = LoadImage("spain.png");     // Loaded in CPU memory (RAM)
+    Image highlightMap; // Map to draw province highlight on cursor hover
 
     Color colour;
 
@@ -131,8 +128,7 @@ int main ()
     camera.target.x = screenWidth/2;
     camera.target.y = screenHeight/2;
 
-    SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
-    //--------------------------------------------------------------------------------------
+    SetTargetFPS(60);
 
     SetMousePosition(screenWidth/2,screenHeight/2);
 
@@ -162,7 +158,7 @@ int main ()
                 screenHeight = GetMonitorHeight(display);
                 SetWindowSize(screenWidth, screenHeight);
             }
-            // toggle the state
+            // Toggle the state
             ToggleFullscreen();
             camera.offset.x = screenWidth/2;
             camera.offset.y = screenHeight/2;
@@ -210,6 +206,8 @@ int main ()
         delta = Vector2Scale(delta, -1.0f/camera.zoom);
         camera.target = Vector2Add(camera.target, delta);
 
+        // Limit game borders
+
         camera.target.x = Clamp(camera.target.x, 0 , screenWidth);
         camera.target.y = Clamp(camera.target.y, 0 , screenHeight);
         
@@ -236,10 +234,34 @@ int main ()
             camera.zoom = Clamp(camera.zoom*scaleFactor, 1.0f, 5.0f);
         }
 
+        float getImageColorx = mouseWorldPos.x/screenWidth*478;
+        float getImageColory = mouseWorldPos.y/screenHeight*279;
+
+        colour = GetImageColor(valueMap, getImageColorx, getImageColory);
+
+        // Find cursor position, map to image and retrieve province colour
+
+        Image highlightMap = ImageCopy(valueMap);
+
+        for (int i = 0; i < provinceCount; i++)
+        {
+            if (ColorIsEqual(colour, provinces[i].colour)) // Highlight province with transparent white
+            {
+                ImageColorReplace(&highlightMap, provinces[i].colour, (Color){255,255,255,60});
+            }
+            else // Remove everything else
+            {
+                ImageColorReplace(&highlightMap, provinces[i].colour, (Color){0,0,0,0});
+            }
+        }
+
+        Texture2D highlightTexture = LoadTextureFromImage(highlightMap);
+
 
         // Draw
 
         BeginDrawing();
+
         ClearBackground((Color){88, 109, 139, 255});
 
         BeginMode2D(camera);
@@ -248,24 +270,21 @@ int main ()
         Vector2 spainCentre = {screenWidth/2, screenHeight/2};
         Rectangle screenRectangle = {screenWidth/2, screenHeight/2, screenWidth, screenHeight};
         
-        DrawTexturePro(spainTexture, spainRectangle, screenRectangle, spainCentre, 0, WHITE);
+        DrawTexturePro(spainTexture, spainRectangle, screenRectangle, spainCentre, 0, WHITE); // Draw full map
         DrawText("+",camera.target.x, camera.target.y, 20, RED);
         DrawText("+",camera.offset.x, camera.offset.y, 20, RED);
+
+        DrawTexturePro(highlightTexture, spainRectangle, screenRectangle, spainCentre, 0, WHITE); // Draw highlight
 
         EndMode2D();
 
         int rectangleHeight = screenHeight/6;
         int rectangleWidth = screenWidth/6;
         DrawRectangle(0, screenHeight-rectangleHeight, rectangleWidth, rectangleHeight, BEIGE);
-
-        float getImageColorx = mouseWorldPos.x/screenWidth*478;
-        float getImageColory = mouseWorldPos.y/screenHeight*279;
-
-        colour = GetImageColor(imageMap, getImageColorx, getImageColory);
         DrawText(TextFormat("%d, %d, %d", colour.r, colour.g, colour.b), 0, screenHeight-rectangleHeight, 20, WHITE);
-        DrawCircle(screenWidth/12, screenHeight-rectangleHeight/3, 20, colour);
+        DrawCircle(screenWidth/12, screenHeight-rectangleHeight/3, 20, colour); // Information in bottom left
 
-        for (int i = 0; i < 53; i++)
+        for (int i = 0; i < provinceCount; i++)
         {
             if (ColorIsEqual(colour, provinces[i].colour))
             {
@@ -274,12 +293,14 @@ int main ()
             }
         }
 
+        UnloadImage(highlightMap);
+
         EndDrawing();
         //----------------------------------------------------------------------------------
     }
 
-    UnloadImage(gameMap);   // Once image has been converted to texture and uploaded to VRAM, it can be unloaded from RAM
-    UnloadImage(imageMap);
+    UnloadImage(playerMap);   // Once image has been converted to texture and uploaded to VRAM, it can be unloaded from RAM
+    UnloadImage(valueMap);
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
