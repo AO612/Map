@@ -234,8 +234,8 @@ int main ()
             camera.zoom = Clamp(camera.zoom*scaleFactor, 1.0f, 5.0f);
         }
 
-        float getImageColorx = mouseWorldPos.x/screenWidth*478;
-        float getImageColory = mouseWorldPos.y/screenHeight*279;
+        float getImageColorx = mouseWorldPos.x/screenWidth*valueMap.width;
+        float getImageColory = mouseWorldPos.y/screenHeight*valueMap.height;
 
         colour = GetImageColor(valueMap, getImageColorx, getImageColory);
 
