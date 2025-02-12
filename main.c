@@ -293,12 +293,14 @@ int main ()
             }
         }
 
+        UnloadTexture(highlightTexture); 
         UnloadImage(highlightMap);
 
         EndDrawing();
         //----------------------------------------------------------------------------------
     }
 
+    UnloadTexture(spainTexture); 
     UnloadImage(playerMap);   // Once image has been converted to texture and uploaded to VRAM, it can be unloaded from RAM
     UnloadImage(valueMap);
 
